@@ -93,6 +93,13 @@ public class App
                         .filter(line -> !stringContainsAnyOf(line, filteredPhrases))
                         .forEach(line -> writeToOutputFile(out, line));
 
+                out.flush();
+                out.close();
+
+                if(outputFile.length() == 0) {
+                    outputFile.delete();
+                }
+
             } catch (IOException ex) {
                 ex.printStackTrace();
                 quitWithMessage(ex.getMessage());
