@@ -8,7 +8,10 @@ import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -20,11 +23,14 @@ public class App
     private static String directory;
     private static File outputDirectory;
     private static String searchPhrase;
+    private static List<String> filteredPhrases = new ArrayList<>();
 
     public static void main( String[] args ) throws Exception
     {
-        if(args.length != 2) {
-            quitWithMessage("Usage: >LogParser.jar -jar <directory> <searchPhrase>");
+        if(args.length != 2 && args.length != 3) {
+            quitWithMessage("Usage: \n" +
+                    ">java -jar LogParser.jar <directory> <searchPhrase>\n" +
+                    ">java -jar LogParser.jar <directory> <searchPhrase> <filteredPhrasesFile>");
         }
 
         directory = args[0];
@@ -36,8 +42,26 @@ public class App
             if (!outputDirectory.mkdir()) {
                 quitWithMessage("could not create output directory " + outputDirectory);
             }
+        }
 
+        if(args.length == 3) {
+            File filteredPhrasesFile = new File(args[2]);
+            if (!filteredPhrasesFile.exists()) {
+                quitWithMessage("<" + args[2] + "> does not exist");
+            }
 
+            try(Stream<String> lines = Files.lines(Paths.get(filteredPhrasesFile.getPath()))) {
+
+                filteredPhrases =
+                        lines
+                                .filter(line -> line.trim().length() != 0)
+                                .map(String::toUpperCase)
+                                .collect(Collectors.toList());
+
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                quitWithMessage(ex.getMessage());
+            }
         }
 
         File logDir = new File(directory);
@@ -66,6 +90,7 @@ public class App
 
                 lines
                         .filter(line -> line.toUpperCase().contains(searchPhrase.toUpperCase()))
+                        .filter(line -> !stringContainsAnyOf(line, filteredPhrases))
                         .forEach(line -> writeToOutputFile(out, line));
 
             } catch (IOException ex) {
@@ -73,6 +98,17 @@ public class App
                 quitWithMessage(ex.getMessage());
             }
         }
+    }
+
+    public static boolean stringContainsAnyOf(String string, List<String> values) {
+
+        for(String value: values) {
+            if (string.toUpperCase().contains(value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static void writeToOutputFile(BufferedWriter out, String line) {
